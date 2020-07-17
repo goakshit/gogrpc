@@ -3,26 +3,43 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 
-	"gogrpc/hellopb"
-
+	"gogrpc/blogpb"
 	"google.golang.org/grpc"
 )
 
-func main() {
-	fmt.Println("Hello client ...")
+func ping() {
 
-	opts := grpc.WithInsecure()
-	cc, err := grpc.Dial("localhost:50051", opts)
-	if err != nil {
-		log.Fatal(err)
+	serverAddress := "localhost:50051"
+
+	conn, e := grpc.Dial(serverAddress, grpc.WithInsecure())
+	if e != nil {
+		panic(e)
 	}
-	defer cc.Close()
+	defer conn.Close()
 
-	client := hellopb.NewHelloServiceClient(cc)
-	request := &hellopb.HelloRequest{Name: "Go Akshit!"}
+	client := blogpb.NewBlogServiceClient(conn)
 
-	resp, _ := client.Hello(context.Background(), request)
-	fmt.Printf("Receive response => [%v]", resp.Greeting)
+	list, err := client.ListBlogs(context.Background(), &blogpb.ListBlogsReq{})
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	for {
+		item, err := list.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			log.Fatal("Get blogs failed")
+		}
+		log.Printf("Blog: %v", item)
+	}
 }
+
+func main() {
+	ping()
+}
+
